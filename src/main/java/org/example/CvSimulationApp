@@ -1,0 +1,166 @@
+package org.example;
+
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
+
+import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * 通过模拟ctrl C + Ctrl V 实现复制粘贴功能
+ * @Author: angeya
+ * @Date: 2024/2/1 09:46
+ * @Description:
+ */
+public class CvSimulationApp implements NativeKeyListener {
+    /**
+     * 被按下的按键集合
+     */
+    private static final Set<String> KEY_CODE_SET = new HashSet<>();
+
+    /**
+     * 触发复制的按键集合
+     */
+    private static final Set<String> COPY_KEY_CODE_SET = new HashSet<>();
+
+    /**
+     * 打开notepad++ 及 cv文件
+     */
+    private static final ProcessBuilder CV_BUILDER = new ProcessBuilder("D:\\Program Files\\Notepad++\\notepad++.exe",
+            "D:\\Program Files\\Notepad++\\cv.txt");
+
+    /**
+     * 创建 Robot 对象
+     */
+    private static Robot robot;
+
+    static {
+        COPY_KEY_CODE_SET.add("Alt");
+        COPY_KEY_CODE_SET.add("Z");
+
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        KEY_CODE_SET.add(keyCode);
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        if (matchShortcut(COPY_KEY_CODE_SET)) {
+            System.out.println("匹配快捷键：" + COPY_KEY_CODE_SET);
+            copy();
+        }
+        KEY_CODE_SET.remove(keyCode);
+    }
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        KEY_CODE_SET.add(keyCode);
+    }
+
+    /**
+     * 匹配快捷键
+     *
+     * @param shortcutKeyCodeSet 快捷键集合
+     * @return 是否匹配
+     */
+    private static boolean matchShortcut(Set<String> shortcutKeyCodeSet) {
+        // 按键元素个数需要相等，多了也不行
+        return KEY_CODE_SET.size() == shortcutKeyCodeSet.size() && KEY_CODE_SET.containsAll(shortcutKeyCodeSet);
+    }
+
+    /**
+     * 复制
+     */
+    private static void copy() {
+
+        try {
+            // ctrl + c
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_C);
+            robot.keyRelease(KeyEvent.VK_C);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(100);
+
+            CV_BUILDER.start();
+            Thread.sleep(500);
+
+
+            // 全选
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(100);
+
+            // ctrl + v
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_V);
+            robot.keyRelease(KeyEvent.VK_V);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(100);
+
+            // 全选
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(100);
+
+            // ctrl + c
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_C);
+            robot.keyRelease(KeyEvent.VK_C);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(80);
+
+            // 切换到notepad++原本打开的文件
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_TAB);
+            robot.keyRelease(KeyEvent.VK_TAB);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+            Thread.sleep(80);
+
+            // 切换会当前窗口
+            robot.keyPress(KeyEvent.VK_ALT);
+            robot.keyPress(KeyEvent.VK_TAB);
+            robot.keyRelease(KeyEvent.VK_TAB);
+            robot.keyRelease(KeyEvent.VK_ALT);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+
+    }
+
+    public static void main(String[] args) {
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (Exception e) {
+            System.err.println("Failed to register native hook");
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
+
+        // 禁用框架默认的jdk日志，否则会一直在刷
+        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        logger.setLevel(Level.OFF);
+
+        CvSimulationApp demo = new CvSimulationApp();
+        GlobalScreen.addNativeKeyListener(demo);
+    }
+
+}
