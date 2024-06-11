@@ -1,0 +1,210 @@
+package org.example;
+
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
+
+import java.awt.*;
+import java.awt.datatransfer.*;
+import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * 通过中间文件修改剪切板实现复制粘贴
+ * @Author: 5790
+ * @Date: 2024/6/11 09:59
+ * @Description:
+ */
+public class CvByMiddleFileApp implements NativeKeyListener {
+
+    /**
+     * 被按下的按键集合
+     */
+    private static final Set<String> KEY_CODE_SET = new HashSet<>();
+
+    /**
+     * 触发复制的按键集合
+     */
+    private static final Set<String> COPY_KEY_CODE_SET = new HashSet<>();
+
+    /**
+     * cv文件
+     */
+    private static final String MIDDLE_FILE_PATH = "D:\\Program Files\\Notepad++\\cv.txt";
+
+    private static final String PYTHON_EXECUTOR = "D:\\Program Files\\Python311\\python";
+
+    private static final String PYTHON_SCRIPT_PATH = "D:\\myprojects\\pythonProject\\fileToClipboard.py";
+
+    /**
+     * 创建 Robot 对象
+     */
+    private static Robot robot;
+
+    static {
+        COPY_KEY_CODE_SET.add("Alt");
+        COPY_KEY_CODE_SET.add("Z");
+
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 按鍵按下
+     */
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        KEY_CODE_SET.add(keyCode);
+    }
+
+    /**
+     * 按键释放
+     */
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        if (matchShortcut(COPY_KEY_CODE_SET)) {
+            System.out.println("匹配快捷键：" + COPY_KEY_CODE_SET);
+            copy();
+        }
+        KEY_CODE_SET.remove(keyCode);
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
+        KEY_CODE_SET.add(keyCode);
+    }
+
+    /**
+     * 匹配快捷键
+     *
+     * @param shortcutKeyCodeSet 快捷键集合
+     * @return 是否匹配
+     */
+    private static boolean matchShortcut(Set<String> shortcutKeyCodeSet) {
+        // 按键元素个数需要相等，多了也不行
+        return KEY_CODE_SET.size() == shortcutKeyCodeSet.size() && KEY_CODE_SET.containsAll(shortcutKeyCodeSet);
+    }
+
+    /**
+     * 复制
+     */
+    private static void copy() {
+        try {
+            copyAndSaveToFile();
+            readFileAndSetToClipboard();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 复制并保存到文件
+     * @throws Exception
+     */
+    private static void copyAndSaveToFile() throws Exception {
+        // 复制
+        robot.keyPress(KeyEvent.VK_CONTROL);
+        robot.keyPress(KeyEvent.VK_C);
+        robot.keyRelease(KeyEvent.VK_C);
+        robot.keyRelease(KeyEvent.VK_CONTROL);
+        Thread.sleep(200);
+        // 获取剪切板内容
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        Transferable contents = clipboard.getContents(null);
+        String pastedText = (String) contents.getTransferData(DataFlavor.stringFlavor);
+        // 保存到文件
+        Files.write(Paths.get(MIDDLE_FILE_PATH), pastedText.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    /**
+     * 读取文件内容并设置到剪切板
+     */
+    private static void readFileAndSetToClipboard() throws Exception {
+        // 当前功能java实现不了，需要通过python脚本来实现（后期可以尝试全部使用python脚本）
+        // ClipboardOwner CLIPBOARD_OWNER = (clipboard, contents) -> System.out.println("剪切板数据丢失");
+        // Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        // String text = new String(Files.readAllBytes(Paths.get("D:\\Program Files\\Notepad++\\cv.txt")), "UTF-8");
+        // System.out.println(text);
+        // StringSelection stringSelection = new StringSelection(text);
+        // clipboard.setContents(stringSelection, CLIPBOARD_OWNER);
+
+        ProcessBuilder pythonScriptBuilder = new ProcessBuilder(PYTHON_EXECUTOR, PYTHON_SCRIPT_PATH);
+        Process process = pythonScriptBuilder.start();
+        // 获取进程的输入流（标准输出）
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            System.out.println(line);
+        }
+
+        // 等待进程结束并获取退出码
+        int exitCode = process.waitFor();
+        System.out.println("python脚本执行完毕，exit code是: " + exitCode);
+    }
+
+    public static void main(String[] args) {
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (Exception e) {
+            System.err.println("Failed to register native hook");
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
+
+        // 禁用框架默认的jdk日志，否则会一直在刷
+        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        logger.setLevel(Level.OFF);
+
+        CvByMiddleFileApp demo = new CvByMiddleFileApp();
+        GlobalScreen.addNativeKeyListener(demo);
+    }
+}
+
+
+/**
+ * python 脚本如下（需要 pip install pywin32）：
+ */
+/*
+import win32clipboard
+
+def set_clipboard_content():
+    # 打开剪贴板
+    win32clipboard.OpenClipboard()
+    try:
+        content = read_file('D:\\Program Files\\Notepad++\\cv.txt')
+        # 清空剪贴板（没有这一步不行）
+        win32clipboard.EmptyClipboard()
+        # 设置剪贴板内容
+        win32clipboard.SetClipboardText(content)
+        print("Clipboard content set to:", content)
+    finally:
+        # 关闭剪贴板
+        win32clipboard.CloseClipboard()
+
+# 读取文件内容
+def read_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+    return content
+
+
+if __name__ == "__main__":
+    set_clipboard_content()
+
+
+ */
