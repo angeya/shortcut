@@ -10,6 +10,7 @@ import java.awt.datatransfer.*;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -139,12 +140,15 @@ public class CvByMiddleFileApp implements NativeKeyListener {
         robot.keyRelease(KeyEvent.VK_C);
         robot.keyRelease(KeyEvent.VK_CONTROL);
         Thread.sleep(200);
+
         // 获取剪切板内容
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         Transferable contents = clipboard.getContents(null);
         String pastedText = (String) contents.getTransferData(DataFlavor.stringFlavor);
-        // 保存到文件
-        Files.write(Paths.get(MIDDLE_FILE_PATH), pastedText.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+
+        // 保存到文件 UTF8编码 （如果文件不存在则创建，截断现有内容）
+        Files.write(Paths.get(MIDDLE_FILE_PATH), pastedText.getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
     /**
@@ -172,6 +176,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
         int exitCode = process.waitFor();
         process.destroy();
         logger.info("python脚本执行完毕，exit code是: " + exitCode);
+        logger.info("执行 " + (exitCode == 0 ? "成功!" : "失败!"));
     }
 
     public static void main(String[] args) {
