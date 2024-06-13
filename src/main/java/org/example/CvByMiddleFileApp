@@ -1,8 +1,9 @@
 package org.example;
 
-import org.jnativehook.GlobalScreen;
-import org.jnativehook.keyboard.NativeKeyEvent;
-import org.jnativehook.keyboard.NativeKeyListener;
+
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 import java.awt.*;
 import java.awt.datatransfer.*;
@@ -28,21 +29,37 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     /**
      * 被按下的按键集合
      */
-    private static final Set<String> KEY_CODE_SET = new HashSet<>();
+    private static final Set<String> PRESSED_KEY_CODE_SET = new HashSet<>();
 
     /**
      * 触发复制的按键集合
      */
-    private static final Set<String> COPY_KEY_CODE_SET = new HashSet<>();
+    private static final Set<String> COPY_PRESSED_KEY_CODE_SET = new HashSet<>();
 
     /**
      * cv文件
      */
     private static final String MIDDLE_FILE_PATH = "D:\\Program Files\\Notepad++\\cv.txt";
 
+    /**
+     * python 执行器
+     */
     private static final String PYTHON_EXECUTOR = "D:\\Program Files\\Python311\\python";
 
+    /**
+     * python 脚本路径
+     */
     private static final String PYTHON_SCRIPT_PATH = "D:\\myprojects\\pythonProject\\fileToClipboard.py";
+
+    /**
+     * 进程构建器
+     */
+    private final ProcessBuilder pythonScriptBuilder = new ProcessBuilder(PYTHON_EXECUTOR, PYTHON_SCRIPT_PATH);
+
+    /**
+     * JDK标准日志记录器
+     */
+    private static final Logger logger = Logger.getLogger(CvByMiddleFileApp.class.getName());
 
     /**
      * 创建 Robot 对象
@@ -50,12 +67,12 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     private static Robot robot;
 
     static {
-        COPY_KEY_CODE_SET.add("Alt");
-        COPY_KEY_CODE_SET.add("Z");
+        COPY_PRESSED_KEY_CODE_SET.add("Alt");
+        COPY_PRESSED_KEY_CODE_SET.add("Z");
 
         try {
             robot = new Robot();
-        } catch (AWTException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -66,7 +83,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
         String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
-        KEY_CODE_SET.add(keyCode);
+        PRESSED_KEY_CODE_SET.add(keyCode);
     }
 
     /**
@@ -75,17 +92,16 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     @Override
     public void nativeKeyReleased(NativeKeyEvent e) {
         String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
-        if (matchShortcut(COPY_KEY_CODE_SET)) {
-            System.out.println("匹配快捷键：" + COPY_KEY_CODE_SET);
+        if (matchShortcut(COPY_PRESSED_KEY_CODE_SET)) {
+            logger.info("匹配快捷键：" + COPY_PRESSED_KEY_CODE_SET);
             copy();
         }
-        KEY_CODE_SET.remove(keyCode);
+        PRESSED_KEY_CODE_SET.remove(keyCode);
     }
 
     @Override
     public void nativeKeyTyped(NativeKeyEvent e) {
-        String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
-        KEY_CODE_SET.add(keyCode);
+        // 按键完成下压和释放后触发
     }
 
     /**
@@ -94,20 +110,20 @@ public class CvByMiddleFileApp implements NativeKeyListener {
      * @param shortcutKeyCodeSet 快捷键集合
      * @return 是否匹配
      */
-    private static boolean matchShortcut(Set<String> shortcutKeyCodeSet) {
+    private boolean matchShortcut(Set<String> shortcutKeyCodeSet) {
         // 按键元素个数需要相等，多了也不行
-        return KEY_CODE_SET.size() == shortcutKeyCodeSet.size() && KEY_CODE_SET.containsAll(shortcutKeyCodeSet);
+        return PRESSED_KEY_CODE_SET.size() == shortcutKeyCodeSet.size() && PRESSED_KEY_CODE_SET.containsAll(shortcutKeyCodeSet);
     }
 
     /**
      * 复制
      */
-    private static void copy() {
+    private void copy() {
         try {
             copyAndSaveToFile();
             readFileAndSetToClipboard();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logger.info(e.getMessage());
             e.printStackTrace();
         }
     }
@@ -116,7 +132,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
      * 复制并保存到文件
      * @throws Exception
      */
-    private static void copyAndSaveToFile() throws Exception {
+    private void copyAndSaveToFile() throws Exception {
         // 复制
         robot.keyPress(KeyEvent.VK_CONTROL);
         robot.keyPress(KeyEvent.VK_C);
@@ -134,44 +150,46 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     /**
      * 读取文件内容并设置到剪切板
      */
-    private static void readFileAndSetToClipboard() throws Exception {
+    private void readFileAndSetToClipboard() throws Exception {
         // 当前功能java实现不了，需要通过python脚本来实现（后期可以尝试全部使用python脚本）
-        // ClipboardOwner CLIPBOARD_OWNER = (clipboard, contents) -> System.out.println("剪切板数据丢失");
+        // ClipboardOwner CLIPBOARD_OWNER = (clipboard, contents) -> logger.info("剪切板数据丢失");
         // Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         // String text = new String(Files.readAllBytes(Paths.get("D:\\Program Files\\Notepad++\\cv.txt")), "UTF-8");
-        // System.out.println(text);
+        // logger.info(text);
         // StringSelection stringSelection = new StringSelection(text);
         // clipboard.setContents(stringSelection, CLIPBOARD_OWNER);
 
-        ProcessBuilder pythonScriptBuilder = new ProcessBuilder(PYTHON_EXECUTOR, PYTHON_SCRIPT_PATH);
+        // 调用python脚本
         Process process = pythonScriptBuilder.start();
         // 获取进程的输入流（标准输出）
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         String line;
         while ((line = reader.readLine()) != null) {
-            System.out.println(line);
+            logger.info(line);
         }
 
         // 等待进程结束并获取退出码
         int exitCode = process.waitFor();
-        System.out.println("python脚本执行完毕，exit code是: " + exitCode);
+        process.destroy();
+        logger.info("python脚本执行完毕，exit code是: " + exitCode);
     }
 
     public static void main(String[] args) {
         try {
             GlobalScreen.registerNativeHook();
         } catch (Exception e) {
-            System.err.println("Failed to register native hook");
-            System.err.println(e.getMessage());
+            logger.severe("Failed to register native hook");
+            logger.severe(e.getMessage());
             System.exit(1);
         }
 
-        // 禁用框架默认的jdk日志，否则会一直在刷
-        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
-        logger.setLevel(Level.OFF);
+        // 调整框架默认的jdk日志，否则会一直在刷屏
+        logger.setLevel(Level.INFO);
 
         CvByMiddleFileApp demo = new CvByMiddleFileApp();
         GlobalScreen.addNativeKeyListener(demo);
+
+        logger.info("start listening...");
     }
 }
 
