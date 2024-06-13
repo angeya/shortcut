@@ -1,8 +1,9 @@
 package org.example;
 
-import org.jnativehook.GlobalScreen;
-import org.jnativehook.keyboard.NativeKeyEvent;
-import org.jnativehook.keyboard.NativeKeyListener;
+
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -13,7 +14,7 @@ import java.util.logging.Logger;
 
 /**
  * 通过模拟ctrl C + Ctrl V 实现复制粘贴功能
- * @Author: angeya
+ * @Author: 5790
  * @Date: 2024/2/1 09:46
  * @Description:
  */
