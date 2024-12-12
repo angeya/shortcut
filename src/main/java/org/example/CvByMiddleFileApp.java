@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
-import java.awt.datatransfer.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,7 +26,7 @@ import java.util.logging.Level;
 
 /**
  * 通过中间文件修改剪切板实现复制粘贴
- * @Author: 5790
+ * @Author: angeya
  * @Date: 2024/6/11 09:59
  * @Description:
  */
@@ -69,7 +71,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
 
     static {
         // 添加快捷键
-        COPY_PRESSED_KEY_CODE_SET.add("Alt");
+        COPY_PRESSED_KEY_CODE_SET.add("ALT");
         COPY_PRESSED_KEY_CODE_SET.add("Z");
 
         try {
@@ -83,7 +85,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     }
 
     /**
-     * 初始化文件
+     * 初始化中间文件
      */
     private static void initFile() {
         String userHomePath = System.getProperty("user.home");
@@ -108,7 +110,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
         String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
-        PRESSED_KEY_CODE_SET.add(keyCode);
+        PRESSED_KEY_CODE_SET.add(keyCode.toUpperCase());
     }
 
     /**
@@ -117,7 +119,7 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     @Override
     public void nativeKeyReleased(NativeKeyEvent e) {
         String keyCode = NativeKeyEvent.getKeyText(e.getKeyCode());
-        if (matchShortcut(COPY_PRESSED_KEY_CODE_SET)) {
+        if (this.matchShortcut(COPY_PRESSED_KEY_CODE_SET)) {
             LOG.info("match shortcut: {}",  COPY_PRESSED_KEY_CODE_SET);
             copy();
         }
@@ -205,6 +207,15 @@ public class CvByMiddleFileApp implements NativeKeyListener {
     }
 
     public static void main(String[] args) {
+        if (args.length > 0) {
+            LOG.info("use custom shortcut key: [{}]", String.join(" + ", args));
+            // 清空快捷键并替换为自定义的(快捷键用大写)
+            COPY_PRESSED_KEY_CODE_SET.clear();
+            for (String key : args) {
+                COPY_PRESSED_KEY_CODE_SET.add(key.toUpperCase());
+            }
+        }
+
         try {
             GlobalScreen.registerNativeHook();
         } catch (Exception e) {
